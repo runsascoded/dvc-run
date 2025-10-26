@@ -1,5 +1,8 @@
 # dvc-run
 
+[![Tests](https://github.com/runsascoded/dvc-run/actions/workflows/test.yml/badge.svg)](https://github.com/runsascoded/dvc-run/actions/workflows/test.yml)
+[![Lint](https://github.com/runsascoded/dvc-run/actions/workflows/lint.yml/badge.svg)](https://github.com/runsascoded/dvc-run/actions/workflows/lint.yml)
+
 **Local parallel execution engine for DVC pipelines**
 
 ## The Problem
