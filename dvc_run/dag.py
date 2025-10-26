@@ -120,3 +120,43 @@ class DAG:
             raise ValueError("Failed to process all stages - possible cycle")
 
         return levels
+
+    def filter_to_targets(self, target_stages: list[str]) -> 'DAG':
+        """Create a new DAG containing only target stages and their dependencies.
+
+        Args:
+            target_stages: List of stage names to include
+
+        Returns:
+            New DAG with filtered stages
+
+        Raises:
+            ValueError: If any target stage doesn't exist
+        """
+        # Validate all targets exist
+        missing = set(target_stages) - set(self.stages.keys())
+        if missing:
+            raise ValueError(f"Stage(s) not found: {', '.join(sorted(missing))}")
+
+        # Collect all stages needed (targets + transitive dependencies)
+        needed_stages = set()
+        to_process = list(target_stages)
+
+        while to_process:
+            stage_name = to_process.pop()
+            if stage_name in needed_stages:
+                continue
+
+            needed_stages.add(stage_name)
+
+            # Add all dependencies
+            deps = self.get_dependencies(stage_name)
+            to_process.extend(deps)
+
+        # Create new DAG with filtered stages
+        filtered_stage_objs = [
+            self.stages[name]
+            for name in needed_stages
+        ]
+
+        return DAG(filtered_stage_objs)

@@ -91,6 +91,12 @@ dvc-run
 
 # Limit parallelism
 dvc-run -j 4
+
+# Run specific stages (and their dependencies)
+dvc-run stage1 stage2
+
+# Validate reproducibility
+dvc-run --validate
 ```
 
 See [EXAMPLES.md](./EXAMPLES.md) for demo pipelines including:

@@ -21,6 +21,7 @@ from dvc_run.parser import DVCYamlParser
 
 
 @click.command()
+@click.argument('stages', nargs=-1)
 @click.option(
     '-d',
     '--dry-run',
@@ -49,6 +50,11 @@ from dvc_run.parser import DVCYamlParser
     help='Enable verbose output',
 )
 @click.option(
+    '--validate',
+    is_flag=True,
+    help='Validate reproducibility by re-running and comparing hashes',
+)
+@click.option(
     '--dot',
     'dot_output',
     type=click.Path(path_type=Path),
@@ -67,10 +73,12 @@ from dvc_run.parser import DVCYamlParser
     help='Export DAG as Mermaid diagram to file',
 )
 def main(
+    stages: tuple[str, ...],
     dry_run: bool,
     jobs: int | None,
     dvc_yaml: Path,
     verbose: bool,
+    validate: bool,
     dot_output: Path | None,
     svg_output: Path | None,
     mermaid_output: Path | None,
@@ -101,17 +109,31 @@ def main(
             click.echo(f"Parsing {dvc_yaml}...", err=True)
 
         parser = DVCYamlParser(dvc_yaml)
-        stages = parser.parse()
+        all_stages = parser.parse()
 
-        if not stages:
+        if not all_stages:
             click.echo("No stages found in dvc.yaml", err=True)
             sys.exit(1)
 
         if verbose:
-            click.echo(f"Found {len(stages)} stage(s)", err=True)
+            click.echo(f"Found {len(all_stages)} stage(s)", err=True)
 
         # Build DAG
-        dag = DAG(stages)
+        dag = DAG(all_stages)
+
+        # Filter to selected stages if specified
+        if stages:
+            try:
+                dag = dag.filter_to_targets(list(stages))
+                if verbose:
+                    click.echo(
+                        f"Filtered to {len(dag.stages)} stage(s) "
+                        f"(targets + dependencies)",
+                        err=True,
+                    )
+            except ValueError as e:
+                click.echo(f"Error: {e}", err=True)
+                sys.exit(1)
 
         # Check for cycles
         cycle = dag.check_cycles()
@@ -148,15 +170,71 @@ def main(
             if dry_run or (dot_output or svg_output or mermaid_output):
                 return
 
+        # Validation mode: backup lock, force re-run, compare
+        backup_lock_content = None
+        lock_path = Path("dvc.lock")
+
+        if validate:
+            if lock_path.exists():
+                backup_lock_content = lock_path.read_text()
+                click.echo("Validation mode: Backing up dvc.lock...", err=True)
+            else:
+                click.echo("Warning: No dvc.lock exists, cannot validate", err=True)
+                validate = False
+
         # Execute
         executor = ParallelExecutor(
             dag=dag,
             max_workers=jobs,
             dry_run=dry_run,
             output=sys.stderr,
+            force=validate,  # Force re-run in validate mode
         )
 
         results = executor.execute()
+
+        # Validation: compare hashes
+        if validate and backup_lock_content:
+            click.echo("\nValidating reproducibility...", err=True)
+
+            import yaml
+            backup_lock = yaml.safe_load(backup_lock_content)
+            new_lock = yaml.safe_load(lock_path.read_text())
+
+            mismatches = []
+            for stage_name in dag.stages.keys():
+                if stage_name not in backup_lock.get('stages', {}):
+                    continue
+                if stage_name not in new_lock.get('stages', {}):
+                    continue
+
+                old_stage = backup_lock['stages'][stage_name]
+                new_stage = new_lock['stages'][stage_name]
+
+                # Compare output hashes
+                for old_out, new_out in zip(
+                    old_stage.get('outs', []),
+                    new_stage.get('outs', [])
+                ):
+                    if old_out.get('md5') != new_out.get('md5'):
+                        mismatches.append({
+                            'stage': stage_name,
+                            'file': old_out['path'],
+                            'old_md5': old_out.get('md5'),
+                            'new_md5': new_out.get('md5'),
+                        })
+
+            if mismatches:
+                click.echo("\n⚠️  Non-reproducible stages detected:", err=True)
+                for m in mismatches:
+                    click.echo(
+                        f"  {m['stage']}: {m['file']} "
+                        f"({m['old_md5'][:8]}... → {m['new_md5'][:8]}...)",
+                        err=True,
+                    )
+                sys.exit(1)
+            else:
+                click.echo("✓ All stages are reproducible!", err=True)
 
         if not dry_run:
             # Print summary

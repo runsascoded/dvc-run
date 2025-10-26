@@ -35,6 +35,7 @@ class ParallelExecutor:
         lock_path: Path = Path("dvc.lock"),
         use_lock: bool = True,
         update_lock: bool = True,
+        force: bool = False,
     ):
         """Initialize parallel executor.
 
@@ -46,6 +47,7 @@ class ParallelExecutor:
             lock_path: Path to dvc.lock file
             use_lock: If True, use dvc.lock for freshness checking (default: True)
             update_lock: If True, update dvc.lock after each stage (default: True)
+            force: If True, skip all freshness checks and re-run everything (default: False)
         """
         self.dag = dag
         self.max_workers = max_workers
@@ -54,6 +56,7 @@ class ParallelExecutor:
         self.lock_path = lock_path
         self.use_lock = use_lock
         self.update_lock = update_lock
+        self.force = force
         self.dvc = DVCClient()
 
         # Parse dvc.lock if using lock-based freshness
@@ -151,8 +154,8 @@ class ParallelExecutor:
         """
         stage = self.dag.stages[stage_name]
 
-        # Check if stage is already up-to-date
-        if self.use_lock:
+        # Check if stage is already up-to-date (unless forcing)
+        if not self.force and self.use_lock:
             # Use lock-based freshness checking
             lock_state = self.lock_states.get(stage_name)
             if is_stage_fresh(stage, lock_state):
@@ -164,7 +167,7 @@ class ParallelExecutor:
                     skipped=True,
                     message=reason,
                 )
-        else:
+        elif not self.force:
             # Fall back to dvc status (legacy behavior)
             status = self.dvc.check_stage_status(stage_name)
             if status.is_fresh:
