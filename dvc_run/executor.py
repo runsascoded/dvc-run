@@ -3,10 +3,13 @@
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TextIO
 
 from dvc_run.dag import DAG
 from dvc_run.dvc import DVCClient
+from dvc_run.freshness import get_freshness_reason, is_stage_fresh
+from dvc_run.lock import DVCLockParser
 from dvc_run.stage import Stage
 
 
@@ -29,6 +32,8 @@ class ParallelExecutor:
         max_workers: int | None = None,
         dry_run: bool = False,
         output: TextIO = sys.stderr,
+        lock_path: Path = Path("dvc.lock"),
+        use_lock: bool = True,
     ):
         """Initialize parallel executor.
 
@@ -37,12 +42,22 @@ class ParallelExecutor:
             max_workers: Maximum number of parallel workers (default: CPU count)
             dry_run: If True, don't actually run stages
             output: Stream for logging output (default: stderr)
+            lock_path: Path to dvc.lock file
+            use_lock: If True, use dvc.lock for freshness checking (default: True)
         """
         self.dag = dag
         self.max_workers = max_workers
         self.dry_run = dry_run
         self.output = output
+        self.lock_path = lock_path
+        self.use_lock = use_lock
         self.dvc = DVCClient()
+
+        # Parse dvc.lock if using lock-based freshness
+        self.lock_states = {}
+        if self.use_lock:
+            lock_parser = DVCLockParser(lock_path)
+            self.lock_states = lock_parser.parse()
 
     def execute(self) -> list[ExecutionResult]:
         """Execute all stages in the DAG, respecting dependencies.
@@ -126,16 +141,32 @@ class ParallelExecutor:
         Returns:
             ExecutionResult for this stage
         """
+        stage = self.dag.stages[stage_name]
+
         # Check if stage is already up-to-date
-        status = self.dvc.check_stage_status(stage_name)
-        if status.is_fresh:
-            self._log(f"  ⊙ {stage_name}: {status.message}")
-            return ExecutionResult(
-                stage_name=stage_name,
-                success=True,
-                skipped=True,
-                message=status.message,
-            )
+        if self.use_lock:
+            # Use lock-based freshness checking
+            lock_state = self.lock_states.get(stage_name)
+            if is_stage_fresh(stage, lock_state):
+                reason = get_freshness_reason(stage, lock_state)
+                self._log(f"  ⊙ {stage_name}: {reason}")
+                return ExecutionResult(
+                    stage_name=stage_name,
+                    success=True,
+                    skipped=True,
+                    message=reason,
+                )
+        else:
+            # Fall back to dvc status (legacy behavior)
+            status = self.dvc.check_stage_status(stage_name)
+            if status.is_fresh:
+                self._log(f"  ⊙ {stage_name}: {status.message}")
+                return ExecutionResult(
+                    stage_name=stage_name,
+                    success=True,
+                    skipped=True,
+                    message=status.message,
+                )
 
         # Run the stage
         self._log(f"  ⟳ {stage_name}: running...")

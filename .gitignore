@@ -28,7 +28,8 @@ env/
 
 # DVC and example artifacts
 example-*/.dvc/
-example-*/dvc.lock
+# Note: dvc.lock should NOT be gitignored (DVC requires it tracked)
+# example-*/dvc.lock
 example-*/*.txt
 example-*/*.dot
 example-*/*.svg
