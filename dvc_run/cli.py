@@ -49,7 +49,33 @@ from dvc_run.parser import DVCYamlParser
     is_flag=True,
     help='Enable verbose output',
 )
-def main(dry_run: bool, jobs: int | None, dvc_yaml: Path, verbose: bool):
+@click.option(
+    '--dot',
+    'dot_output',
+    type=click.Path(path_type=Path),
+    help='Export DAG as GraphViz DOT format to file',
+)
+@click.option(
+    '--svg',
+    'svg_output',
+    type=click.Path(path_type=Path),
+    help='Export DAG as SVG to file (requires graphviz)',
+)
+@click.option(
+    '--mermaid',
+    'mermaid_output',
+    type=click.Path(path_type=Path),
+    help='Export DAG as Mermaid diagram to file',
+)
+def main(
+    dry_run: bool,
+    jobs: int | None,
+    dvc_yaml: Path,
+    verbose: bool,
+    dot_output: Path | None,
+    svg_output: Path | None,
+    mermaid_output: Path | None,
+):
     """Execute DVC pipeline stages in parallel.
 
     dvc-run reads your dvc.yaml file, builds a dependency graph, and executes
@@ -96,6 +122,32 @@ def main(dry_run: bool, jobs: int | None, dvc_yaml: Path, verbose: bool):
                 err=True,
             )
             sys.exit(1)
+
+        # Export visualizations if requested
+        if dot_output or svg_output or mermaid_output:
+            from dvc_run.viz import DAGVisualizer
+
+            viz = DAGVisualizer(dag)
+
+            if dot_output:
+                viz.to_dot_file(dot_output)
+                click.echo(f"Exported DOT to {dot_output}", err=True)
+
+            if svg_output:
+                try:
+                    viz.to_svg(svg_output)
+                    click.echo(f"Exported SVG to {svg_output}", err=True)
+                except RuntimeError as e:
+                    click.echo(f"Error: {e}", err=True)
+                    sys.exit(1)
+
+            if mermaid_output:
+                mermaid_output.write_text(viz.to_mermaid())
+                click.echo(f"Exported Mermaid to {mermaid_output}", err=True)
+
+            # If only exporting visualizations (no execution), exit
+            if dry_run or (dot_output or svg_output or mermaid_output):
+                return
 
         # Execute
         executor = ParallelExecutor(
