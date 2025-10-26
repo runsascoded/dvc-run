@@ -10,7 +10,6 @@ from dvc_run.dag import DAG
 from dvc_run.dvc import DVCClient
 from dvc_run.freshness import get_freshness_reason, is_stage_fresh
 from dvc_run.lock import DVCLockParser
-from dvc_run.stage import Stage
 
 
 @dataclass
@@ -171,7 +170,7 @@ class ParallelExecutor:
         # Run the stage
         self._log(f"  ⟳ {stage_name}: running...")
         try:
-            result = self.dvc.run_stage(stage_name)
+            self.dvc.run_stage(stage_name)
             self._log(f"  ✓ {stage_name}: completed")
             return ExecutionResult(
                 stage_name=stage_name,

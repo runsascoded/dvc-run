@@ -1,7 +1,6 @@
 """Dependency graph builder for DVC stages."""
 
 from collections import defaultdict, deque
-from typing import Any
 
 from dvc_run.stage import Stage
 

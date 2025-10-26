@@ -66,7 +66,7 @@ class DAGVisualizer:
 
         try:
             # Run dot command to generate SVG
-            result = subprocess.run(
+            subprocess.run(
                 ["dot", "-Tsvg", str(dot_path), "-o", str(output_path)],
                 capture_output=True,
                 text=True,

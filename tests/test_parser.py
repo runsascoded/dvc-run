@@ -6,7 +6,6 @@ from pathlib import Path
 import pytest
 
 from dvc_run.parser import DVCYamlParser
-from dvc_run.stage import Stage
 
 
 def test_parse_simple_stages():

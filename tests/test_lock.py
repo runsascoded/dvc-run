@@ -3,7 +3,6 @@
 import tempfile
 from pathlib import Path
 
-import pytest
 
 from dvc_run.freshness import get_freshness_reason, is_stage_fresh
 from dvc_run.hash import compute_md5
