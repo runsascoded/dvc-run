@@ -1,0 +1,24 @@
+[project]
+name = "dvc-run"
+version = "0.1.0"
+description = "Local parallel execution engine for DVC pipelines"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "click>=8.0",
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+dvc-run = "dvc_run.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+]

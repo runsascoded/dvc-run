@@ -59,6 +59,39 @@ dvc-run --dry-run  # show execution plan
 
 5. **Local-first**: Optimized for developer workflows, not production orchestration
 
+## Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/neighbor-ryan/dvc-run
+cd dvc-run
+
+# Install with uv (recommended)
+uv sync
+uv pip install -e .
+
+# Or with pip
+pip install -e .
+```
+
+## Quick Start
+
+```bash
+# Navigate to your DVC project
+cd /path/to/your/dvc/project
+
+# Show execution plan
+dvc-run --dry-run
+
+# Run pipeline with parallel execution
+dvc-run
+
+# Limit parallelism
+dvc-run -j 4
+```
+
+See [example/](./example) for a working demo pipeline.
+
 ## Architecture
 
 ### Stage Execution Model

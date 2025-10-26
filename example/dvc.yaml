@@ -1,0 +1,42 @@
+stages:
+  # Independent stages that can run in parallel
+  data_a:
+    cmd: echo "Processing dataset A..." && sleep 1 && echo "Dataset A" > data_a.txt
+    outs:
+      - data_a.txt
+
+  data_b:
+    cmd: echo "Processing dataset B..." && sleep 1 && echo "Dataset B" > data_b.txt
+    outs:
+      - data_b.txt
+
+  data_c:
+    cmd: echo "Processing dataset C..." && sleep 1 && echo "Dataset C" > data_c.txt
+    outs:
+      - data_c.txt
+
+  # Depends on data_a and data_b
+  merge_ab:
+    cmd: cat data_a.txt data_b.txt > merged_ab.txt
+    deps:
+      - data_a.txt
+      - data_b.txt
+    outs:
+      - merged_ab.txt
+
+  # Depends on data_c
+  process_c:
+    cmd: echo "Processed:" > processed_c.txt && cat data_c.txt >> processed_c.txt
+    deps:
+      - data_c.txt
+    outs:
+      - processed_c.txt
+
+  # Final stage depends on merge_ab and process_c
+  final:
+    cmd: cat merged_ab.txt processed_c.txt > final.txt
+    deps:
+      - merged_ab.txt
+      - processed_c.txt
+    outs:
+      - final.txt
