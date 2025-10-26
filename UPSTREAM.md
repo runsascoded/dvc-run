@@ -146,15 +146,15 @@ DVC team **knows about the problem** but hasn't prioritized it. Possible reasons
 - [x] Document upstream strategy (this file)
 
 ### Short-term (next sprint):
-- [ ] Implement basic `dvc.lock` parsing
-- [ ] Implement freshness checking
-- [ ] Test on NJDOT pipeline
-- [ ] Measure actual speedup
+- [x] Implement basic `dvc.lock` parsing ✅ Phase 1 complete
+- [x] Implement freshness checking ✅ Phase 1 complete
+- [ ] Test on NJDOT pipeline ← NEXT!
+- [ ] Measure actual speedup ← NEXT!
 - [ ] Document compatibility with DVC tools
 
 ### Medium-term (3-6 months):
-- [ ] Implement thread-safe `dvc.lock` updates
-- [ ] Add validation mode
+- [x] Implement thread-safe `dvc.lock` updates ✅ Phase 2 complete
+- [ ] Add validation mode (Phase 3)
 - [ ] Publish to PyPI
 - [ ] Write blog post with benchmarks
 - [ ] Get 10+ users
