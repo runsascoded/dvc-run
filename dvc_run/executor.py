@@ -9,7 +9,8 @@ from typing import TextIO
 from dvc_run.dag import DAG
 from dvc_run.dvc import DVCClient
 from dvc_run.freshness import get_freshness_reason, is_stage_fresh
-from dvc_run.lock import DVCLockParser
+from dvc_run.hash import compute_md5
+from dvc_run.lock import DVCLockParser, DVCLockWriter
 
 
 @dataclass
@@ -33,6 +34,7 @@ class ParallelExecutor:
         output: TextIO = sys.stderr,
         lock_path: Path = Path("dvc.lock"),
         use_lock: bool = True,
+        update_lock: bool = True,
     ):
         """Initialize parallel executor.
 
@@ -43,6 +45,7 @@ class ParallelExecutor:
             output: Stream for logging output (default: stderr)
             lock_path: Path to dvc.lock file
             use_lock: If True, use dvc.lock for freshness checking (default: True)
+            update_lock: If True, update dvc.lock after each stage (default: True)
         """
         self.dag = dag
         self.max_workers = max_workers
@@ -50,6 +53,7 @@ class ParallelExecutor:
         self.output = output
         self.lock_path = lock_path
         self.use_lock = use_lock
+        self.update_lock = update_lock
         self.dvc = DVCClient()
 
         # Parse dvc.lock if using lock-based freshness
@@ -57,6 +61,11 @@ class ParallelExecutor:
         if self.use_lock:
             lock_parser = DVCLockParser(lock_path)
             self.lock_states = lock_parser.parse()
+
+        # Initialize lock writer if we'll be updating
+        self.lock_writer = None
+        if self.update_lock and not self.dry_run:
+            self.lock_writer = DVCLockWriter(lock_path)
 
     def execute(self) -> list[ExecutionResult]:
         """Execute all stages in the DAG, respecting dependencies.
@@ -171,6 +180,26 @@ class ParallelExecutor:
         self._log(f"  ⟳ {stage_name}: running...")
         try:
             self.dvc.run_stage(stage_name)
+
+            # If updating lock, compute hashes and update
+            if self.lock_writer:
+                deps_hashes = {}
+                for dep_path in stage.deps:
+                    try:
+                        deps_hashes[dep_path] = compute_md5(Path(dep_path))
+                    except (FileNotFoundError, ValueError) as e:
+                        self._log(f"  ⚠ {stage_name}: warning - couldn't hash dep {dep_path}: {e}")
+
+                outs_hashes = {}
+                for out_path in stage.outs:
+                    try:
+                        outs_hashes[out_path] = compute_md5(Path(out_path))
+                    except (FileNotFoundError, ValueError) as e:
+                        self._log(f"  ⚠ {stage_name}: warning - couldn't hash out {out_path}: {e}")
+
+                # Update lock file (thread-safe)
+                self.lock_writer.update_stage(stage, deps_hashes, outs_hashes)
+
             self._log(f"  ✓ {stage_name}: completed")
             return ExecutionResult(
                 stage_name=stage_name,

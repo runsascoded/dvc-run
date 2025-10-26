@@ -1,71 +1,56 @@
 schema: '2.0'
 stages:
   data_b:
-    cmd: echo "Processing dataset B..." && sleep 1 && echo "Dataset B" > 
-      data_b.txt
+    cmd: echo "Processing dataset B..." && sleep 1 && echo "Dataset B" > data_b.txt
     outs:
     - path: data_b.txt
-      hash: md5
       md5: ec89a4ea0cfa4b231980dbb5cbf78122
       size: 10
-  data_a:
-    cmd: echo "Processing dataset A..." && sleep 1 && echo "Dataset A" > 
-      data_a.txt
-    outs:
-    - path: data_a.txt
-      hash: md5
-      md5: 47f9787d18f67855e31bc8c0332a17cc
-      size: 10
   data_c:
-    cmd: echo "Processing dataset C..." && sleep 1 && echo "Dataset C" > 
-      data_c.txt
+    cmd: echo "Processing dataset C..." && sleep 1 && echo "Dataset C" > data_c.txt
     outs:
     - path: data_c.txt
-      hash: md5
       md5: 23860224327a9284417dbba01a7113db
       size: 10
+  data_a:
+    cmd: echo "Processing dataset A..." && sleep 1 && echo "Dataset A" > data_a.txt
+    outs:
+    - path: data_a.txt
+      md5: 47f9787d18f67855e31bc8c0332a17cc
+      size: 10
   process_c:
-    cmd: echo "Processed:" > processed_c.txt && cat data_c.txt >> 
-      processed_c.txt
+    cmd: echo "Processed:" > processed_c.txt && cat data_c.txt >> processed_c.txt
     deps:
     - path: data_c.txt
-      hash: md5
       md5: 23860224327a9284417dbba01a7113db
       size: 10
     outs:
     - path: processed_c.txt
-      hash: md5
       md5: fb9fa9e3e93444016bf11a164e4d705f
       size: 21
   merge_ab:
     cmd: cat data_a.txt data_b.txt > merged_ab.txt
     deps:
     - path: data_a.txt
-      hash: md5
       md5: 47f9787d18f67855e31bc8c0332a17cc
       size: 10
     - path: data_b.txt
-      hash: md5
       md5: ec89a4ea0cfa4b231980dbb5cbf78122
       size: 10
     outs:
     - path: merged_ab.txt
-      hash: md5
       md5: df7172e359bc6eef75661aa3b587e830
       size: 20
   final:
     cmd: cat merged_ab.txt processed_c.txt > final.txt
     deps:
     - path: merged_ab.txt
-      hash: md5
       md5: df7172e359bc6eef75661aa3b587e830
       size: 20
     - path: processed_c.txt
-      hash: md5
       md5: fb9fa9e3e93444016bf11a164e4d705f
       size: 21
     outs:
     - path: final.txt
-      hash: md5
       md5: f91fe60eb12080300ea5d00ecbe7a583
       size: 41

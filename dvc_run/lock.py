@@ -4,6 +4,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
+from filelock import FileLock
+
+from dvc_run.hash import compute_file_size, compute_md5
+from dvc_run.stage import Stage
 
 
 @dataclass
@@ -84,3 +88,78 @@ class DVCLockParser:
                 )
 
         return StageState(cmd=cmd, deps=deps, outs=outs)
+
+
+class DVCLockWriter:
+    """Thread-safe writer for dvc.lock files."""
+
+    def __init__(self, lock_path: Path = Path("dvc.lock")):
+        """Initialize lock writer.
+
+        Args:
+            lock_path: Path to dvc.lock file
+        """
+        self.lock_path = lock_path
+        # Use .lock suffix for file lock (will be gitignored)
+        self.file_lock = FileLock(str(lock_path) + ".lock")
+
+    def update_stage(
+        self,
+        stage: Stage,
+        deps_hashes: dict[str, str],
+        outs_hashes: dict[str, str],
+    ):
+        """Update a single stage in dvc.lock (thread-safe).
+
+        Args:
+            stage: Stage that just completed
+            deps_hashes: {path: md5} for all dependencies
+            outs_hashes: {path: md5} for all outputs
+        """
+        with self.file_lock:
+            # Read current lock state
+            if self.lock_path.exists():
+                with open(self.lock_path) as f:
+                    lock = yaml.safe_load(f) or {}
+            else:
+                lock = {}
+
+            # Ensure structure exists
+            if 'schema' not in lock:
+                lock['schema'] = '2.0'
+            if 'stages' not in lock:
+                lock['stages'] = {}
+
+            # Build stage entry
+            stage_entry = {'cmd': stage.cmd}
+
+            # Add dependencies
+            if deps_hashes:
+                stage_entry['deps'] = [
+                    {
+                        'path': path,
+                        'md5': md5,
+                        'size': compute_file_size(Path(path)),
+                    }
+                    for path, md5 in sorted(deps_hashes.items())
+                ]
+
+            # Add outputs
+            if outs_hashes:
+                stage_entry['outs'] = [
+                    {
+                        'path': path,
+                        'md5': md5,
+                        'size': compute_file_size(Path(path)),
+                    }
+                    for path, md5 in sorted(outs_hashes.items())
+                ]
+
+            # Update stage in lock
+            lock['stages'][stage.name] = stage_entry
+
+            # Atomic write (write to temp, then rename)
+            temp_path = self.lock_path.with_suffix('.tmp')
+            with open(temp_path, 'w') as f:
+                yaml.dump(lock, f, sort_keys=False, default_flow_style=False)
+            temp_path.rename(self.lock_path)
