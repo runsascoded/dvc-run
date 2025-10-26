@@ -6,7 +6,7 @@ from pathlib import Path
 import yaml
 from filelock import FileLock
 
-from dvc_run.hash import compute_file_size, compute_md5
+from dvc_run.hash import compute_file_size
 from dvc_run.stage import Stage
 
 
