@@ -24,9 +24,27 @@ class DAGVisualizer:
             "",
         ]
 
-        # Add nodes
+        # Add nodes with tooltips
         for stage_name in sorted(self.dag.stages.keys()):
-            lines.append(f'  "{stage_name}";')
+            stage = self.dag.stages[stage_name]
+            tooltip_parts = []
+
+            if stage.desc:
+                tooltip_parts.append(stage.desc)
+
+            if stage.deps:
+                deps_str = "\\n".join(f"  • {d}" for d in stage.deps)
+                tooltip_parts.append(f"Deps:\\n{deps_str}")
+
+            if stage.outs:
+                outs_str = "\\n".join(f"  • {o}" for o in stage.outs)
+                tooltip_parts.append(f"Outs:\\n{outs_str}")
+
+            if tooltip_parts:
+                tooltip = "\\n\\n".join(tooltip_parts)
+                lines.append(f'  "{stage_name}" [tooltip="{tooltip}"];')
+            else:
+                lines.append(f'  "{stage_name}";')
 
         lines.append("")
 
@@ -90,15 +108,36 @@ class DAGVisualizer:
         """
         lines = ["graph LR"]
 
-        # Add edges (nodes will be created implicitly)
+        # Add nodes with descriptions and tooltips
         for stage_name in sorted(self.dag.stages.keys()):
+            stage = self.dag.stages[stage_name]
+            node_id = stage_name.replace("-", "_").replace(" ", "_")
+
+            if stage.desc:
+                # Create node with label showing description
+                label = f"{stage_name}\\n{stage.desc}"
+                lines.append(f'  {node_id}["{label}"]')
+
+        lines.append("")
+
+        # Add edges
+        for stage_name in sorted(self.dag.stages.keys()):
+            stage = self.dag.stages[stage_name]
+            node_id = stage_name.replace("-", "_").replace(" ", "_")
             deps = sorted(self.dag.get_dependencies(stage_name))
+
             if deps:
                 for dep in deps:
-                    lines.append(f"  {dep} --> {stage_name}")
+                    dep_id = dep.replace("-", "_").replace(" ", "_")
+                    lines.append(f"  {dep_id} --> {node_id}")
             else:
-                # Standalone node
-                lines.append(f"  {stage_name}")
+                # Ensure standalone nodes are included
+                if not any(stage_name in line for line in lines[1:]):
+                    if stage.desc:
+                        label = f"{stage_name}\\n{stage.desc}"
+                        lines.append(f'  {node_id}["{label}"]')
+                    else:
+                        lines.append(f"  {node_id}")
 
         return "\n".join(lines)
 

@@ -11,6 +11,7 @@ class Stage:
     cmd: str
     deps: list[str] = field(default_factory=list)
     outs: list[str] = field(default_factory=list)
+    desc: str | None = None
 
     def __hash__(self):
         return hash(self.name)

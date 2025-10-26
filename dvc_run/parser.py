@@ -75,9 +75,13 @@ class DVCYamlParser:
         elif not isinstance(outs, list):
             outs = [outs]
 
+        # Extract description
+        desc = config.get("desc")
+
         return Stage(
             name=name,
             cmd=cmd,
             deps=deps,
             outs=outs,
+            desc=desc,
         )
