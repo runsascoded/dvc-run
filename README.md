@@ -63,7 +63,7 @@ dvc-run --dry-run  # show execution plan
 
 ```bash
 # Clone the repository
-git clone https://github.com/neighbor-ryan/dvc-run
+git clone https://github.com/runsascoded/dvc-run
 cd dvc-run
 
 # Install with uv (recommended)
