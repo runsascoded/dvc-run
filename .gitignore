@@ -26,7 +26,10 @@ venv/
 ENV/
 env/
 
-# DVC
-example/.dvc/
-example/dvc.lock
-example/*.txt
+# DVC and example artifacts
+example-*/.dvc/
+example-*/dvc.lock
+example-*/*.txt
+example-*/*.dot
+example-*/*.svg
+example-*/*.mmd

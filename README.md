@@ -90,7 +90,9 @@ dvc-run
 dvc-run -j 4
 ```
 
-See [example/](./example) for a working demo pipeline.
+See [EXAMPLES.md](./EXAMPLES.md) for demo pipelines including:
+- [example-basic/](./example-basic) - Simple pipeline with dependency tracking
+- [example-parallel-heavy/](./example-parallel-heavy) - Many parallel stages (10x speedup)
 
 ## Architecture
 

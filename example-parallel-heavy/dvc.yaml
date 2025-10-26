@@ -1,0 +1,76 @@
+stages:
+  # Simulate data processing for 10 independent datasets
+  process_01:
+    cmd: echo "Processing dataset 01..." && sleep 0.5 && echo "Dataset 01 complete" > data_01.txt
+    outs:
+      - data_01.txt
+
+  process_02:
+    cmd: echo "Processing dataset 02..." && sleep 0.5 && echo "Dataset 02 complete" > data_02.txt
+    outs:
+      - data_02.txt
+
+  process_03:
+    cmd: echo "Processing dataset 03..." && sleep 0.5 && echo "Dataset 03 complete" > data_03.txt
+    outs:
+      - data_03.txt
+
+  process_04:
+    cmd: echo "Processing dataset 04..." && sleep 0.5 && echo "Dataset 04 complete" > data_04.txt
+    outs:
+      - data_04.txt
+
+  process_05:
+    cmd: echo "Processing dataset 05..." && sleep 0.5 && echo "Dataset 05 complete" > data_05.txt
+    outs:
+      - data_05.txt
+
+  process_06:
+    cmd: echo "Processing dataset 06..." && sleep 0.5 && echo "Dataset 06 complete" > data_06.txt
+    outs:
+      - data_06.txt
+
+  process_07:
+    cmd: echo "Processing dataset 07..." && sleep 0.5 && echo "Dataset 07 complete" > data_07.txt
+    outs:
+      - data_07.txt
+
+  process_08:
+    cmd: echo "Processing dataset 08..." && sleep 0.5 && echo "Dataset 08 complete" > data_08.txt
+    outs:
+      - data_08.txt
+
+  process_09:
+    cmd: echo "Processing dataset 09..." && sleep 0.5 && echo "Dataset 09 complete" > data_09.txt
+    outs:
+      - data_09.txt
+
+  process_10:
+    cmd: echo "Processing dataset 10..." && sleep 0.5 && echo "Dataset 10 complete" > data_10.txt
+    outs:
+      - data_10.txt
+
+  # Merge all datasets
+  merge_all:
+    cmd: cat data_*.txt > merged.txt
+    deps:
+      - data_01.txt
+      - data_02.txt
+      - data_03.txt
+      - data_04.txt
+      - data_05.txt
+      - data_06.txt
+      - data_07.txt
+      - data_08.txt
+      - data_09.txt
+      - data_10.txt
+    outs:
+      - merged.txt
+
+  # Generate summary report
+  report:
+    cmd: wc -l merged.txt > report.txt
+    deps:
+      - merged.txt
+    outs:
+      - report.txt
