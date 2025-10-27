@@ -2,6 +2,7 @@
 
 import subprocess
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass
@@ -69,6 +70,10 @@ class DVCClient:
 
         Raises:
             subprocess.CalledProcessError: If dvc repro fails
+
+        Note:
+            This method is deprecated in favor of run_command() for parallel execution.
+            Using dvc repro causes lock contention when running stages in parallel.
         """
         try:
             result = subprocess.run(
@@ -90,3 +95,44 @@ class DVCClient:
                 "dvc command not found - is DVC installed? "
                 "Install with: pip install dvc"
             )
+
+    def run_command(
+        self,
+        cmd: str,
+        cwd: Path | None = None,
+    ) -> subprocess.CompletedProcess:
+        """Run a command directly without DVC CLI.
+
+        This bypasses DVC's locking mechanisms and allows true parallel execution.
+        The caller is responsible for:
+        - Checking freshness before running
+        - Computing hashes after running
+        - Updating dvc.lock
+
+        Args:
+            cmd: Command string to execute (will be run in shell)
+            cwd: Working directory (default: current directory)
+
+        Returns:
+            CompletedProcess with results
+
+        Raises:
+            RuntimeError: If command fails
+        """
+        try:
+            result = subprocess.run(
+                cmd,
+                shell=True,
+                cwd=cwd,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            return result
+        except subprocess.CalledProcessError as e:
+            # Re-raise with better error message
+            raise RuntimeError(
+                f"Command failed: {cmd}\n"
+                f"stdout: {e.stdout}\n"
+                f"stderr: {e.stderr}"
+            ) from e

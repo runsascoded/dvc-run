@@ -179,10 +179,12 @@ class ParallelExecutor:
                     message=status.message,
                 )
 
-        # Run the stage
+        # Run the stage command directly (bypasses DVC locking)
         self._log(f"  ⟳ {stage_name}: running...")
         try:
-            self.dvc.run_stage(stage_name)
+            # Run command directly instead of via dvc repro
+            # This avoids DVC's lock contention when running stages in parallel
+            self.dvc.run_command(stage.cmd)
 
             # If updating lock, compute hashes and update
             if self.lock_writer:

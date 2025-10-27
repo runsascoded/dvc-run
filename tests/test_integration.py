@@ -174,6 +174,60 @@ stages:
     assert "failed" in result.stderr.lower()
 
 
+def test_long_running_parallel_stages(dvc_project):
+    """Test parallel execution with long-running stages to verify no lock contention.
+
+    This test creates 4 independent stages that each sleep for 3 seconds.
+    If they run in parallel, total time should be ~3s.
+    If they run serially (due to lock contention), it would be ~12s.
+    """
+    import time
+
+    dvc_yaml = dvc_project / "dvc.yaml"
+    dvc_yaml.write_text("""
+stages:
+  slow_a:
+    cmd: sleep 3 && echo "A" > output_a.txt
+    outs:
+      - output_a.txt
+  slow_b:
+    cmd: sleep 3 && echo "B" > output_b.txt
+    outs:
+      - output_b.txt
+  slow_c:
+    cmd: sleep 3 && echo "C" > output_c.txt
+    outs:
+      - output_c.txt
+  slow_d:
+    cmd: sleep 3 && echo "D" > output_d.txt
+    outs:
+      - output_d.txt
+""")
+
+    start_time = time.time()
+    result = subprocess.run(
+        ["dvc-run"],
+        cwd=dvc_project,
+        capture_output=True,
+        text=True,
+    )
+    elapsed = time.time() - start_time
+
+    assert result.returncode == 0
+    assert "Executed: 4" in result.stderr
+
+    # Verify outputs were created
+    assert (dvc_project / "output_a.txt").read_text().strip() == "A"
+    assert (dvc_project / "output_b.txt").read_text().strip() == "B"
+    assert (dvc_project / "output_c.txt").read_text().strip() == "C"
+    assert (dvc_project / "output_d.txt").read_text().strip() == "D"
+
+    # Verify true parallelism: should complete in ~3s, not ~12s
+    # Allow some overhead for process spawning, but should be well under 6s
+    assert elapsed < 6.0, f"Took {elapsed:.1f}s - stages may have run serially"
+    print(f"✓ 4 stages completed in {elapsed:.1f}s (expected ~3s for parallel)")
+
+
 def test_dot_export(dvc_project):
     """Test DOT export."""
     dvc_yaml = dvc_project / "dvc.yaml"
