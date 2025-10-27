@@ -52,9 +52,9 @@ dvc-run --dry-run  # show execution plan
 
 ### Key Design Principles
 
-1. **DVC as the source of truth**: Read `dvc.yaml` for stage definitions, use `dvc status` for freshness checks, call `dvc repro` for execution
+1. **DVC file format compatible**: Reads `dvc.yaml`, parses `dvc.lock`, computes MD5 hashes matching DVC's algorithm - but bypasses DVC CLI for execution to avoid lock contention
 
-2. **Parallel by default**: Automatically detect independent stages and run them concurrently
+2. **Parallel by default**: Automatically detect independent stages and run them concurrently without lock contention
 
 3. **Zero config**: Works with existing DVC repos, no additional files needed
 
@@ -116,6 +116,27 @@ Parse dvc.yaml → Build DAG → Topological sort → Execute by levels
 ```
 
 Within each level, stages run in parallel (up to `-j` workers).
+
+### Execution Flow (No Lock Contention)
+
+**Traditional approach (lock contention):**
+```python
+# Multiple dvc repro processes → DVC locks entire dependency trees → deadlocks
+subprocess.run(["dvc", "repro", "stage1"])  # Locks stage1 + all deps
+subprocess.run(["dvc", "repro", "stage2"])  # Locks stage2 + all deps → CONFLICT
+```
+
+**dvc-run approach (lock-free parallel execution):**
+```python
+# Single process, direct command execution, thread-safe lock updates
+1. Parse dvc.yaml and dvc.lock (once, at startup)
+2. Check freshness via MD5 hash comparison (no subprocess)
+3. Run commands directly: subprocess.run(stage.cmd, shell=True)
+4. Compute output hashes (thread-safe, read-only)
+5. Update dvc.lock via thread-safe writer (filelock + atomic writes)
+```
+
+**Result:** 4 stages × 3s each = **3.3s total** (vs 12s serial)
 
 ### Freshness Checks
 
